@@ -3,7 +3,9 @@
 var fs = require('fs')
     ,walk = require('walkdir')
     ,mkdirp = require('mkdirp')
-    ,program = require('commander');;
+    ,program = require('commander')
+    ,wrench = require('wrench')
+    ,utils = require( 'utils' );
 
 //get dust mobile; fallback to linkedin version
 try {
@@ -12,18 +14,8 @@ try {
     var dust = require('dustjs-linkedin');
 }
 
-program
-    .version('0.0.1')
-    .usage('[path ...] [version - defaults to 0_0_0]')
-    .parse(process.argv);
-
-if (!program.args.length) {
-    process.stdout.write(program.helpInformation());
-    process.exit(0);
-}
-
 var version = "0_0_1";
-var view_path = process.argv[2];
+var view_path = './Content/dusts';
 
 
 try {
@@ -46,8 +38,11 @@ catch (e) {
 //version number should be in the following format - 0_0_0
 if (process.argv[3]) version = process.argv[3].replace(/\./g,'_').replace(/\-/g,'_');
 
-//compile views to the following folder - path/compiled_0_0_0
-var compiled_folder = view_path + "/compiled_" + version + "/";
+//compile views to the following folder
+var compiled_folder = './Content/js/dusts';
+
+// Wipe out all previously compiled dusts
+wrench.rmdirSyncRecursive(compiled_folder, true);
 
 mkdirp(compiled_folder, function (err) {
     if (err) console.error(err);
@@ -61,22 +56,23 @@ walk.sync(view_path, function(filepath, stat) {
     fs.readFile(filepath, 'ascii', function (err, data) {
         if (err) console.error(err);
         var path_parts = filepath.split("/");
-        var file_to_create = path_parts[0] + "\\compiled_" + version;
+        var file_to_create = compiled_folder;
+        console.log(path_parts);
         path_parts.splice(0, 1);
 
         for (folder in path_parts) {
-            if (path_parts[folder].indexOf("html") == -1 && path_parts[folder].indexOf("dust") == -1) {
-                file_to_create = file_to_create + "\\" + path_parts[folder];
+            if (path_parts[folder].indexOf(".dust") == -1) {
+                file_to_create += "/" + path_parts[folder];
 
                 mkdirp(file_to_create, function (err) {
                     if (err) console.error(err);
-                    console.log('Created folder : ' + file_to_create);
+                   // console.log('Created folder : ' + file_to_create);
                 });
             }
         }
 
         var filename = filepath.split("/").reverse()[0].replace(".html", "").replace(".dust", "");
-        file_to_create = file_to_create + "\\" + filename + "_"  + version + ".js";
+        file_to_create += "/" + filename + ".js";
 
         //compile to dust
         var compiled = dust.compile(data, filename);
