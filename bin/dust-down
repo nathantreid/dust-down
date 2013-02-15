@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+//#!/usr/bin/env node
 
 var fs = require('fs')
     ,walk = require('walkdir')
@@ -38,7 +38,7 @@ catch (e) {
 //version number should be in the following format - 0_0_0
 if (process.argv[3]) version = process.argv[3].replace(/\./g,'_').replace(/\-/g,'_');
 
-//compile views to the following folder
+//compile views to the following folder - path/compiled_0_0_0
 var compiled_folder = './Content/js/dusts';
 
 // Wipe out all previously compiled dusts
@@ -46,18 +46,21 @@ wrench.rmdirSyncRecursive(compiled_folder, true);
 
 mkdirp(compiled_folder, function (err) {
     if (err) console.error(err);
-    else console.log('Created folder : ' + compiled_folder);
+    //else console.log('Created folder : ' + compiled_folder);
 });
-
+var fileCount = 0, processedFileCount = 0;
+var stopProcessing = false;
+var processingStartTime = new Date();
 //walk through all files in path provided
 walk.sync(view_path, function(filepath, stat) {
     if (stat.isDirectory() || filepath.indexOf("compiled") != -1) return;
-
+    fileCount++;
     fs.readFile(filepath, 'ascii', function (err, data) {
         if (err) console.error(err);
+        if(stopProcessing) return;
         var path_parts = filepath.split("/");
         var file_to_create = compiled_folder;
-        console.log(path_parts);
+        //console.log(path_parts);
         path_parts.splice(0, 1);
 
         for (folder in path_parts) {
@@ -75,11 +78,24 @@ walk.sync(view_path, function(filepath, stat) {
         file_to_create += "/" + filename + ".js";
 
         //compile to dust
-        var compiled = dust.compile(data, filename);
+        //console.log('Compiling: ' + file_to_create);
+        try{
+            var compiled = dust.compile(data, filename);
 
-        fs.writeFile(file_to_create, compiled, function (err) {
-            if (err) console.error(err);
-            console.log('Dust view compiled: ' + file_to_create);
-        });
+            fs.writeFile(file_to_create, compiled, function (err) {
+                if (err) console.error(err);
+                processedFileCount++;
+                if (fileCount == processedFileCount)
+                    console.log('Dust compilation completed in ' + (new Date() - processingStartTime) +  'ms!');
+                //console.log('Dust view compiled: ' + file_to_create);
+            });
+            
+        } catch (e){
+            console.log('Error on file: ' + file_to_create);
+            stopProcessing = true;
+            console.log('Error message: ' + e);
+            //throw e;
+        }
+        
     });
 });
